@@ -13,14 +13,14 @@ open import lambda6
 
 data Env : {n : Nat} -> Ctx n -> Set where
   []  : Env []
-  _∷_ : {n : Nat} {τ : Type} {τs : Ctx n} -> ⟦ τ ⟧ -> Env τs -> Env (τ ∷ τs)
+  _∷_ : ∀ {n τ} {τs : Ctx n} -> ⟦ τ ⟧ -> Env τs -> Env (τ ∷ τs)
 
-_!env_ : {n : Nat} {Γ : Ctx n} -> Env Γ -> (m : Fin n) -> ⟦ Γ ! m ⟧
+_!env_ : ∀ {n} {Γ : Ctx n} -> Env Γ -> (m : Fin n) -> ⟦ Γ ! m ⟧
 []        !env ()
 (x ∷ env) !env zero  = x
 (x ∷ env) !env suc n = env !env n
 
-_[_] : {n : Nat} {Γ : Ctx n} {τ : Type} -> Env Γ -> Term Γ τ -> ⟦ τ ⟧
+_[_] : ∀ {n} {Γ : Ctx n} {τ} -> Env Γ -> Term Γ τ -> ⟦ τ ⟧
 env [ var v ] = env !env v
 env [ t · u ] = (env [ t ]) (env [ u ])
 env [ lam σ t ] = λ x -> (x ∷ env) [ t ]
