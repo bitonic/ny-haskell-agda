@@ -1,4 +1,4 @@
-module lambda10 where
+module lambda9 where
 
 open import lambda1
 open import lambda2
@@ -20,7 +20,7 @@ cong₂ f refl refl = refl
 
 postulate ext : {A B : Set} {f g : A -> B} -> ({x : A} -> f x == g x) -> f == g
 
-cfold : {n : Nat} {Γ : Ctx n} {τ : Type} (t : Term Γ τ) -> Optimised t
+cfold : ∀ {n} {Γ : Ctx n} {τ} (t : Term Γ τ) -> Optimised t
 cfold (var v) = opt (var v) refl
 cfold (t · u) with cfold t | cfold u
 ... | opt t′ p | opt u′ q = opt (t′ · u′) (cong₂ (λ t u -> t u) p q)
