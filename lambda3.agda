@@ -1,31 +1,33 @@
 module lambda3 where
 
-* = Set
+open import lambda1
+open import lambda2
 
+data Vec (A : Set) : Nat -> Set where
+  []  : Vec A zero
+  _∷_ : ∀ {n} -> A -> Vec A n -> Vec A (suc n)
 
-data Nat : * where
-  zero : Nat
-  suc  : Nat → Nat
+vec0 : Vec Nat zero
+vec0 = []
 
-{-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
+vec3 : Vec Nat 3
+vec3 = 1 ∷ 2 ∷ 3 ∷ []
 
-_+_ : Nat → Nat → Nat
-zero  + n = n
-suc m + n = suc (m + n)
+head : ∀ {A n} -> Vec A (suc n) -> A
+head (x ∷ xs) = x
 
-data List (A : *) : * where
-  []  : List A
-  _∷_ : A → List A → List A
+_++_ : ∀ {A n m} -> Vec A n -> Vec A m -> Vec A (n + m)
+[]       ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ xs ++ ys
 
-length : {A : *} → List A → Nat
-length [] = zero
-length (x ∷ xs) = suc (length xs)
+data Fin : Nat -> Set where
+  zero : ∀ {n} -> Fin (suc n)
+  suc  : ∀ {n} -> Fin n -> Fin (suc n)
 
-data NonEmpty {A : *} : List A → * where
-  nonEmpty : (x : A) → (xs : List A) → NonEmpty (x ∷ xs)
+_!_ : ∀ {A n} -> Vec A n -> Fin n -> A
+(x ∷ _)  ! zero  = x
+(_ ∷ xs) ! suc n = xs ! n
 
-head : {A : *} → (l : List A) → NonEmpty l → A
-head []      ()
-head (x ∷ _) p  = x
+toNat : ∀ {n} -> Fin n -> Nat
+toNat zero = zero
+toNat (suc n) = suc (toNat n)

@@ -1,58 +1,34 @@
 module lambda4 where
 
-* = Set
+open import lambda1
+open import lambda2
+open import lambda3
 
+-- Slide about the language and de Bruijin
+data Type : Set where
+  nat  : Type
+  _=>_ : Type -> Type -> Type
 
-data Nat : * where
-  zero : Nat
-  suc  : Nat → Nat
+-- Explain de Bruijin
+data Syntax : Set where
+  var : Nat -> Syntax
+  _·_ : Syntax -> Syntax -> Syntax
+  lam : Type -> Syntax -> Syntax
+  lit : Nat -> Syntax
+  _⊕_ : Syntax -> Syntax -> Syntax
 
-{-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
+Ctx = Vec Type
 
-_+_ : Nat → Nat → Nat
-zero  + n = n
-suc m + n = suc (m + n)
+data Term {n} (Γ : Ctx n) : Type -> Set where
+  var : (v : Fin n) -> Term Γ (Γ ! v)
+  _·_ : ∀ {σ τ} -> Term Γ (σ => τ) -> Term Γ σ -> Term Γ τ
+  lam : ∀ {τ} σ -> Term (σ ∷ Γ) τ -> Term Γ (σ => τ)
+  _⊕_ : Term Γ nat -> Term Γ nat -> Term Γ nat
+  lit : Nat -> Term Γ nat
 
-data List (A : *) : * where
-  []  : List A
-  _∷_ : A → List A → List A
-
-length : {A : *} → List A → Nat
-length [] = zero
-length (x ∷ xs) = suc (length xs)
-
-
-
-
-data NonEmpty {A : *} : List A → * where
-  nonEmpty : (x : A) → (xs : List A) → NonEmpty (x ∷ xs)
-
-head : {A : *} → (l : List A) → NonEmpty l → A
-head []      ()
-head (x ∷ _) p  = x
-
-
-
-
-data _∈_ {A} (x : A) : List A → * where
-  here  : ∀ {xs}            → x ∈ (x ∷ xs)
-  there : ∀ {xs y} → x ∈ xs → x ∈ (y ∷ xs)
-
-index : ∀ {A x} {xs : List A} → x ∈ xs → Nat
-index here      = zero
-index (there p) = suc (index p)
-
-data Lookup {A} (xs : List A) : Nat → * where
-  inside  : (x : A) → (p : x ∈ xs) → Lookup xs (index p)
-  outside : (m : Nat) → Lookup xs (length xs + m)
-
--- Showcase agsy
-
-lookup : ∀ {A} (xs : List A) (n : Nat) → Lookup xs n
-lookup [] n = outside n
-lookup (x ∷ xs) zero = inside x here
-lookup (x ∷ xs) (suc n) with lookup xs n
-lookup (x ∷ xs) (suc .(index p)) | inside y p = inside y (there p)
-lookup (x ∷ xs) (suc .(length xs + m)) | outside m = outside m
+erase : ∀ {n} {Γ : Ctx n} {τ} -> Term Γ τ -> Syntax
+erase (var v) = var (toNat v)
+erase (t · u) = erase t · erase u
+erase (lam σ t) = lam σ (erase t)
+erase (t ⊕ u) = erase t ⊕ erase u
+erase (lit n) = lit n
