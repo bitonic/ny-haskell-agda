@@ -1,4 +1,4 @@
-module lambda7 where
+module lambda10 where
 
 data Nat : Set where
   zero : Nat
@@ -64,15 +64,18 @@ data Syntax : Set where
 
 Ctx = Vec Type
 
+data _==_ {A : Set} (x : A) : A -> Set where
+  refl : x == x
+
 data Term {n} (Γ : Ctx n) : Type -> Set where
-  var : (v : Fin n) -> Term Γ (Γ ! v)
+  var : ∀ {τ} -> (v : Fin n) -> τ == (Γ ! v) -> Term Γ τ
   _·_ : ∀ {σ τ} -> Term Γ (σ => τ) -> Term Γ σ -> Term Γ τ
   lam : ∀ {τ} σ -> Term (σ ∷ Γ) τ -> Term Γ (σ => τ)
   _⊕_ : Term Γ nat -> Term Γ nat -> Term Γ nat
   lit : Nat -> Term Γ nat
 
 erase : ∀ {n} {Γ : Ctx n} {τ} -> Term Γ τ -> Syntax
-erase (var v) = var (toNat v)
+erase (var v p) = var (toNat v)
 erase (t · u) = erase t · erase u
 erase (lam σ t) = lam σ (erase t)
 erase (t ⊕ u) = erase t ⊕ erase u
@@ -106,7 +109,7 @@ data Check {n} (Γ : Ctx n) : Syntax -> Set where
 
 check : ∀ {n} (Γ : Ctx n) (t : Syntax) -> Check Γ t
 check {n} Γ (var v) with fromNat n v
-check Γ (var .(toNat v)) | yes v = yes (Γ ! v) (var v)
+check Γ (var .(toNat v)) | yes v = yes (Γ ! v) (var v refl)
 check {n} Γ (var .(n + m)) | no m = no
 check Γ (t · u) with check Γ t | check Γ u
 check Γ (.(erase t) · .(erase u)) | yes (σ => τ) t | yes σ′ u with equal? σ σ′
@@ -120,3 +123,45 @@ check Γ (lit n) = yes nat (lit n)
 check Γ (t ⊕ u) with check Γ t | check Γ u
 check Γ (.(erase t) ⊕ .(erase u)) | yes nat t | yes nat u = yes nat (t ⊕ u)
 check Γ (t ⊕ u) | _ | _ = no
+
+⟦_⟧ : Type -> Set
+⟦ nat ⟧ = Nat
+⟦ σ => τ ⟧ = ⟦ σ ⟧ → ⟦ τ ⟧
+
+data Env : ∀ {n} -> Ctx n -> Set where
+  []  : Env []
+  _∷_ : ∀ {n} {Γ : Ctx n} {τ} -> ⟦ τ ⟧ -> Env Γ -> Env (τ ∷ Γ)
+
+_!env_ : ∀ {n} {Γ : Ctx n} -> Env Γ -> (ix : Fin n) -> ⟦ Γ ! ix ⟧
+(x ∷ env) !env zero = x
+(x ∷ env) !env suc ix = env !env ix
+
+_[_] : ∀ {n} {Γ : Ctx n} {τ} -> Env Γ -> Term Γ τ -> ⟦ τ ⟧
+env [ var v refl ] = env !env v
+env [ t · u ] = (env [ t ]) (env [ u ])
+env [ lam σ t ] = λ x → (x ∷ env) [ t ]
+env [ t ⊕ u ] = (env [ t ]) + (env [ u ])
+env [ lit x ] = x
+
+record Optimised {n} {Γ : Ctx n} {τ} (t : Term Γ τ) : Set where
+  constructor opt
+  field
+    optimised : Term Γ τ
+    sound     : ∀ {env} -> env [ t ] == env [ optimised ]
+
+cong₂ : ∀ {A B C x y u v} (f : A -> B -> C) ->
+        x == y -> u == v -> f x u == f y v
+cong₂ f refl refl = refl
+
+postulate ext : ∀ {A B} {f g : A -> B} -> ({x : A} -> f x == g x) -> f == g
+
+cfold : ∀ {n} {Γ : Ctx n} {τ} (t : Term Γ τ) -> Optimised t
+cfold (var v p) = opt (var v p) refl
+cfold (t · u) with cfold t | cfold u
+... | opt t′ p | opt u′ q = opt (t′ · u′) (cong₂ (λ t u → t u) p q)
+cfold (lam σ t) with cfold t
+... | opt t′ p = opt (lam σ t′) (ext p)
+cfold (t ⊕ u) with cfold t | cfold u
+... | opt (lit n) p | opt (lit m) q = opt (lit (n + m)) (cong₂ _+_ p q)
+... | opt t′ p | opt u′ q = opt (t′ ⊕ u′) (cong₂ _+_ p q)
+cfold (lit x) = opt (lit x) refl
