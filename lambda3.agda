@@ -50,3 +50,4 @@ _!_ : ∀ {A n} -> Vec A n -> Fin n -> A
 toNat : ∀ {n} -> Fin n -> Nat
 toNat zero = zero
 toNat (suc n) = suc (toNat n)
+
