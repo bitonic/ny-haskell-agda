@@ -3,10 +3,7 @@ module lambda9 where
 data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
-
 {-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 
 _+_ : Nat -> Nat -> Nat
 zero + n = n

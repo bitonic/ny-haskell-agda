@@ -3,10 +3,7 @@ module lambda10 where
 data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
-
 {-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 
 _+_ : Nat -> Nat -> Nat
 zero + n = n
@@ -16,7 +13,7 @@ infixr 5 _∷_
 
 data List (A : Set) : Set where
   []  : List A
-  _∷_ : A → List A → List A
+  _∷_ : A -> List A -> List A
 
 length : ∀ {A} → List A → Nat
 length [] = zero
@@ -147,7 +144,7 @@ record Optimised {n} {Γ : Ctx n} {τ} (t : Term Γ τ) : Set where
   constructor opt
   field
     optimised : Term Γ τ
-    sound     : ∀ {env} -> env [ t ] == env [ optimised ]
+    sound     : ∀ {env} -> (env [ t ]) == (env [ optimised ])
 
 cong₂ : ∀ {A B C x y u v} (f : A -> B -> C) ->
         x == y -> u == v -> f x u == f y v

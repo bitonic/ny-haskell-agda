@@ -3,10 +3,7 @@ module lambda3 where
 data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
-
 {-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 
 _+_ : Nat -> Nat -> Nat
 zero + n = n
@@ -50,4 +47,3 @@ _!_ : ∀ {A n} -> Vec A n -> Fin n -> A
 toNat : ∀ {n} -> Fin n -> Nat
 toNat zero = zero
 toNat (suc n) = suc (toNat n)
-
