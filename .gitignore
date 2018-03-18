@@ -1,0 +1,5 @@
+*.o
+*.hi
+*.agdai
+lambda*.agda
+split
