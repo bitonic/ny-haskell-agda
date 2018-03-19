@@ -184,6 +184,10 @@ infix 50 _≡_
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
 
+data Equal? {A} (τ σ : A) : Set where
+  yes : τ ≡ σ → Equal? τ σ
+  no : Equal? τ σ
+
 -- ***
 
 Ctx = Vec Type
@@ -215,39 +219,35 @@ erase (lit n) = lit n
 
 -- ***
 
-data FromNat (n : Nat) : Nat → Set where
-  yes : (m : Fin n) → FromNat n (toNat m)
-  no : (m : Nat) → FromNat n (n + m)
+equalType : ∀ τ σ → Equal? τ σ
+equalType nat nat = yes refl
+equalType (σ ⇒ τ) (σ′ ⇒ τ′) with equalType σ σ′ | equalType τ τ′
+equalType (σ ⇒ τ) (.σ ⇒ .τ) | yes refl | yes refl = yes refl
+equalType (σ ⇒ τ) (σ′ ⇒ τ′) | _ | _ = no
+equalType _ _ = no
 
--- SPLIT fromNat : (n : Nat) (m : Nat) → FromNat n m
-fromNat : (n : Nat) (m : Nat) → FromNat n m
-fromNat zero m = no m
-fromNat (suc n) zero = yes zero
-fromNat (suc n) (suc m) with fromNat n m
-fromNat (suc n) (suc .(toNat m)) | yes m = yes (suc m)
-fromNat (suc n) (suc .(n + m)) | no m = no m
-
--- eval `fromNat 2 0`
--- eval `fromNat 2 1`
--- eval `fromNat 2 2`
--- eval `fromNat 2 3`
+-- eval `equalType nat nat`
+-- eval `equalType nat (nat ⇒ nat)`
 
 -- ***
 
-data Equal? {A} (τ σ : A) : Set where
-  yes : τ ≡ σ → Equal? τ σ
-  no : Equal? τ σ
+data _>?_ (n : Nat) : Nat → Set where
+  yes : (m : Fin n) → n >? (toNat m)
+  no : (m : Nat) → n >? (n + m)
 
--- SPLIT equal? : ∀ τ σ → Equal? τ σ
-equal? : ∀ τ σ → Equal? τ σ
-equal? nat nat = yes refl
-equal? (σ ⇒ τ) (σ′ ⇒ τ′) with equal? σ σ′ | equal? τ τ′
-equal? (σ ⇒ τ) (.σ ⇒ .τ) | yes refl | yes refl = yes refl
-equal? (σ ⇒ τ) (σ′ ⇒ τ′) | _ | _ = no
-equal? _ _ = no
+-- SPLIT inBounds : (n : Nat) (m : Nat) → FromNat n m
+inBounds : (n : Nat) (m : Nat) → m >? n
+inBounds n zero = no n
+inBounds zero (suc m) = yes zero
+inBounds (suc n) (suc m) with inBounds n m
+inBounds (suc .(toNat n)) (suc m) | yes n = yes (suc n)
+inBounds (suc .(m + n)) (suc m) | no n = no n
 
--- eval `equal? nat nat`
--- eval `equal? nat (nat ⇒ nat)`
+-- eval `inBounds 0 2`
+-- eval `inBounds 1 2`
+-- eval `inBounds 2 2`
+-- eval `inBounds 3 2`
+
 
 -- ***
 
@@ -257,11 +257,13 @@ data Check {n} (Γ : Ctx n) : Syntax → Set where
 
 -- SPLIT check : ∀ {n} (Γ : Ctx n) (t : Syntax) → Check Γ t
 check : ∀ {n} (Γ : Ctx n) (t : Syntax) → Check Γ t
-check {n} Γ (var v) with fromNat n v
+check {n} Γ (var v) with inBounds v n
 check {n} Γ (var .(toNat v)) | yes v = yes (Γ ! v) (var v refl)
 check {n} Γ (var .(n + m)) | no m = no
-check Γ (t ∙ u) with check Γ t | check Γ u
-check Γ (.(erase t) ∙ .(erase u)) | yes (σ ⇒ τ) t | yes σ′ u with equal? σ σ′
+check Γ (t ∙ u)
+  with check Γ t | check Γ u
+check Γ (.(erase t) ∙ .(erase u))
+  | yes (σ ⇒ τ) t | yes σ′ u with equalType σ σ′
 check Γ (.(erase t) ∙ .(erase u))
   | yes (.σ ⇒ τ) t | yes σ u | yes refl = yes τ (t ∙ u)
 check Γ (.(erase t) ∙ .(erase u))
@@ -289,7 +291,6 @@ data Env : ∀ {n} → Ctx n → Set where
   []  : Env []
   _∷_ : ∀ {n} {Γ : Ctx n} {τ} → ⟦ τ ⟧ → Env Γ → Env (τ ∷ Γ)
 
--- SPLIT _!ᵉ_ : ∀ {n} {Γ : Ctx n} → Env Γ → (ix : Fin n) → ⟦ Γ ! ix ⟧
 _!ᵉ_ : ∀ {n} {Γ : Ctx n} → Env Γ → (ix : Fin n) → ⟦ Γ ! ix ⟧
 (x ∷ env) !ᵉ zero = x
 (x ∷ env) !ᵉ suc ix = env !ᵉ ix
