@@ -146,6 +146,25 @@ bang1 = 1 ∷ 2 ∷ [] ! 1
 
 -- ***
 
+data _>?_ (n : Nat) : Nat → Set where
+  yes : (m : Fin n) → n >? (toNat m)
+  no : (m : Nat) → n >? (n + m)
+
+-- SPLIT inBounds : (n : Nat) (m : Nat) → FromNat n m
+inBounds : (n : Nat) (m : Nat) → m >? n
+inBounds n zero = no n
+inBounds zero (suc m) = yes zero
+inBounds (suc n) (suc m) with inBounds n m
+inBounds (suc .(toNat n)) (suc m) | yes n = yes (suc n)
+inBounds (suc .(m + n)) (suc m) | no n = no n
+
+-- eval `inBounds 0 2`
+-- eval `inBounds 1 2`
+-- eval `inBounds 2 2`
+-- eval `inBounds 3 2`
+
+-- ***
+
 data Type : Set where
   nat : Type
   _⇒_ : Type → Type → Type
@@ -162,11 +181,11 @@ data Syntax : Set where
   -- addition
   _⊕_ : Syntax → Syntax → Syntax
 
--- \x -> x + 1
+-- \(x : Nat) -> x + 1
 termAdd1 : Syntax
 termAdd1 = lam nat (var 0 ⊕ lit 1)
 
--- \x -> x + (1 + 1)
+-- \(x : Nat) -> x + (1 + 1)
 termAdd2 : Syntax
 termAdd2 = lam nat (var 0 ⊕ (lit 1 ⊕ lit 1))
 
@@ -194,21 +213,23 @@ Ctx = Vec Type
 
 data Term {n} (Γ : Ctx n) : Type → Set where
   var :
-    ∀ {τ} → -- given a type τ
-    (v : Fin n) → -- and a variable in bounds
-    τ ≡ (Γ ! v) → -- and a proof that τ is its type
-    Term Γ τ -- I give you a term of type τ in Γ
+    ∀ {τ} →             -- given a type τ
+    (v : Fin n) →       -- and a variable in bounds
+    τ ≡ (Γ ! v) →       -- and a proof that τ is its type
+    Term Γ τ             -- I give you a term of type τ in Γ
   _∙_ :
-    ∀ {σ τ} → -- given types σ and τ
-    Term Γ (σ ⇒ τ) → -- and a function from σ to τ
-    Term Γ σ → -- and an argument of type σ
-    Term Γ τ -- I give you a term of type τ
+    ∀ {σ τ} →           -- given types σ and τ
+    Term Γ (σ ⇒ τ) →   -- and a function from σ to τ
+    Term Γ σ →          -- and an argument of type σ
+    Term Γ τ             -- I give you a term of type τ
   lam :
-    ∀ {τ} σ → -- given types τ and σ
-    Term (σ ∷ Γ) τ → -- given a term with something of type σ in scope
-    Term Γ (σ ⇒ τ) -- I give you a term of type σ to τ
-  _⊕_ : Term Γ nat → Term Γ nat → Term Γ nat
-  lit : Nat → Term Γ nat
+    ∀ {τ} σ →           -- given types τ and σ
+    Term (σ ∷ Γ) τ →    -- given a term with something of type σ in scope
+    Term Γ (σ ⇒ τ)      -- I give you a term of type σ to τ
+  _⊕_ :
+    Term Γ nat → Term Γ nat → Term Γ nat
+  lit :
+    Nat → Term Γ nat
 
 erase : ∀ {n} {Γ : Ctx n} {τ} → Term Γ τ → Syntax
 erase (var v p) = var (toNat v)
@@ -229,24 +250,7 @@ equalType _ _ = no
 -- eval `equalType nat nat`
 -- eval `equalType nat (nat ⇒ nat)`
 
--- ***
 
-data _>?_ (n : Nat) : Nat → Set where
-  yes : (m : Fin n) → n >? (toNat m)
-  no : (m : Nat) → n >? (n + m)
-
--- SPLIT inBounds : (n : Nat) (m : Nat) → FromNat n m
-inBounds : (n : Nat) (m : Nat) → m >? n
-inBounds n zero = no n
-inBounds zero (suc m) = yes zero
-inBounds (suc n) (suc m) with inBounds n m
-inBounds (suc .(toNat n)) (suc m) | yes n = yes (suc n)
-inBounds (suc .(m + n)) (suc m) | no n = no n
-
--- eval `inBounds 0 2`
--- eval `inBounds 1 2`
--- eval `inBounds 2 2`
--- eval `inBounds 3 2`
 
 
 -- ***
