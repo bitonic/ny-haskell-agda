@@ -33,13 +33,15 @@ instance
 
 -- }}}
 
+-- SPLIT _+_ : Nat → Nat → Nat
 _+_ : Nat → Nat → Nat
--- SPLIT
 zero + n = n
 suc m + n = suc (m + n)
 
 infixl 6 _+_
 
+-- eval `suc zero + suc (suc zero)`
+-- eval `13 + 11`
 
 -- ***
 
@@ -52,6 +54,8 @@ data List (A : Set) : Set where
 length : ∀ {A} → List A → Nat
 length [] = zero
 length (_ ∷ xs) = suc (length xs)
+
+-- ***
 
 data Vec (A : Set) : Nat → Set where
   [] : Vec A zero
@@ -68,8 +72,8 @@ vec3 = 1 ∷ 2 ∷ 3 ∷ []
 
 -- ***
 
+-- SPLIT head : ∀ {A n} → Vec A (suc n) → A
 head : ∀ {A n} → Vec A (suc n) → A
--- SPLIT
 head (x ∷ xs) = x
 
 _++_ : ∀ {A n m} → Vec A n → Vec A m → Vec A (n + m)
@@ -124,12 +128,12 @@ toNat (suc n) = suc (toNat n)
 
 -- ***
 
-infix 4 _!_
-
+-- SPLIT _!_ : ∀ {A n} → Vec A n → Fin n → A
 _!_ : ∀ {A n} → Vec A n → Fin n → A
--- SPLIT
 (x ∷ xs) ! zero = x
 (x ∷ xs) ! suc n = xs ! n
+
+infix 4 _!_
 
 bang0 : Nat
 bang0 = 1 ∷ 2 ∷ [] ! 0
@@ -215,8 +219,8 @@ data FromNat (n : Nat) : Nat → Set where
   yes : (m : Fin n) → FromNat n (toNat m)
   no : (m : Nat) → FromNat n (n + m)
 
+-- SPLIT fromNat : (n : Nat) (m : Nat) → FromNat n m
 fromNat : (n : Nat) (m : Nat) → FromNat n m
--- SPLIT
 fromNat zero m = no m
 fromNat (suc n) zero = yes zero
 fromNat (suc n) (suc m) with fromNat n m
@@ -230,15 +234,15 @@ fromNat (suc n) (suc .(n + m)) | no m = no m
 
 -- ***
 
-data Equal? (τ : Type) : Type → Set where
-  yes : Equal? τ τ
-  no : ∀ {σ} → Equal? τ σ
+data Equal? {A} (τ σ : A) : Set where
+  yes : τ ≡ σ → Equal? τ σ
+  no : Equal? τ σ
 
+-- SPLIT equal? : ∀ τ σ → Equal? τ σ
 equal? : ∀ τ σ → Equal? τ σ
--- SPLIT
-equal? nat nat = yes
+equal? nat nat = yes refl
 equal? (σ ⇒ τ) (σ′ ⇒ τ′) with equal? σ σ′ | equal? τ τ′
-equal? (σ ⇒ τ) (.σ ⇒ .τ) | yes | yes = yes
+equal? (σ ⇒ τ) (.σ ⇒ .τ) | yes refl | yes refl = yes refl
 equal? (σ ⇒ τ) (σ′ ⇒ τ′) | _ | _ = no
 equal? _ _ = no
 
@@ -251,15 +255,17 @@ data Check {n} (Γ : Ctx n) : Syntax → Set where
   yes : (τ : Type) (t : Term Γ τ) → Check Γ (erase t)
   no : {t : Syntax} → Check Γ t
 
+-- SPLIT check : ∀ {n} (Γ : Ctx n) (t : Syntax) → Check Γ t
 check : ∀ {n} (Γ : Ctx n) (t : Syntax) → Check Γ t
--- SPLIT
 check {n} Γ (var v) with fromNat n v
 check {n} Γ (var .(toNat v)) | yes v = yes (Γ ! v) (var v refl)
 check {n} Γ (var .(n + m)) | no m = no
 check Γ (t ∙ u) with check Γ t | check Γ u
 check Γ (.(erase t) ∙ .(erase u)) | yes (σ ⇒ τ) t | yes σ′ u with equal? σ σ′
-check Γ (.(erase t) ∙ .(erase u)) | yes (.σ ⇒ τ) t | yes σ u | yes = yes τ (t ∙ u)
-check Γ (.(erase t) ∙ .(erase u)) | yes (σ ⇒ τ) t | yes σ′ u | no = no
+check Γ (.(erase t) ∙ .(erase u))
+  | yes (.σ ⇒ τ) t | yes σ u | yes refl = yes τ (t ∙ u)
+check Γ (.(erase t) ∙ .(erase u))
+  | yes (σ ⇒ τ) t | yes σ′ u | no = no
 check Γ (t ∙ u) | _ | _ = no
 check Γ (lam σ t) with check (σ ∷ Γ) t
 check Γ (lam σ .(erase t)) | yes τ t = yes (σ ⇒ τ) (lam σ t)
@@ -283,18 +289,18 @@ data Env : ∀ {n} → Ctx n → Set where
   []  : Env []
   _∷_ : ∀ {n} {Γ : Ctx n} {τ} → ⟦ τ ⟧ → Env Γ → Env (τ ∷ Γ)
 
+-- SPLIT _!ᵉ_ : ∀ {n} {Γ : Ctx n} → Env Γ → (ix : Fin n) → ⟦ Γ ! ix ⟧
 _!ᵉ_ : ∀ {n} {Γ : Ctx n} → Env Γ → (ix : Fin n) → ⟦ Γ ! ix ⟧
--- SPLIT
 (x ∷ env) !ᵉ zero = x
 (x ∷ env) !ᵉ suc ix = env !ᵉ ix
 
+-- SPLIT _[_] : ∀ {n} {Γ : Ctx n} {τ} → Env Γ → Term Γ τ → ⟦ τ ⟧
 _[_] : ∀ {n} {Γ : Ctx n} {τ} → Env Γ → Term Γ τ → ⟦ τ ⟧
--- SPLIT
 env [ var v refl ] = env !ᵉ v
 env [ t ∙ u ] = (env [ t ]) (env [ u ])
 env [ lam σ t ] = λ x → (x ∷ env) [ t ]
 env [ t ⊕ u ] = (env [ t ]) + (env [ u ])
-env [ lit x ] = x
+env [ lit n ] = n
 
 -- ***
 
@@ -306,6 +312,10 @@ eval : (t : Syntax) → Eval t
 eval t with check [] t
 eval .(erase t) | yes τ t = yes ([] [ t ])
 eval t | no = no
+
+-- eval `eval termAdd1`
+-- eval `eval termAdd2`
+-- eval `eval term6`
 
 -- ***
 
@@ -323,8 +333,8 @@ cong₂ f refl refl = refl
 postulate
   ext : ∀ {A B} {f g : A → B} → ({x : A} → f x ≡ g x) → f ≡ g
 
+-- SPLIT constantFold : ∀ {n} {Γ : Ctx n} {τ} (t : Term Γ τ) → Optimized t
 constantFold : ∀ {n} {Γ : Ctx n} {τ} (t : Term Γ τ) → Optimized t
--- SPLIT
 constantFold (var v p) = opt (var v p) refl
 constantFold (t ∙ u) with constantFold t | constantFold u
 ... | opt t′ p | opt u′ q = opt (t′ ∙ u′) (cong₂ (λ t u → t u) p q)
@@ -335,8 +345,19 @@ constantFold (t ⊕ u) with constantFold t | constantFold u
 ... | opt t′ p | opt u′ q = opt (t′ ⊕ u′) (cong₂ _+_ p q)
 constantFold (lit n) = opt (lit n) refl
 
-evalConstantFold : (t : Syntax) → Eval t
-evalConstantFold t with check [] t
-evalConstantFold .(erase t) | yes τ t =
-  yes ([] [ Optimized.optimized (constantFold t) ])
-evalConstantFold t | no = 
+-- ***
+
+data CheckAndOptimize (t : Syntax) : Set where
+  yes : ∀ τ → Term [] τ → CheckAndOptimize t
+  no : CheckAndOptimize t
+
+checkAndOptimize : (t : Syntax) → CheckAndOptimize t
+checkAndOptimize t with check [] t
+checkAndOptimize .(erase t) | yes τ t with constantFold t
+checkAndOptimize .(erase t) | yes τ t | opt t′ p = yes τ t′
+checkAndOptimize t | no = no
+
+-- eval `check [] termAdd1`
+-- eval `checkAndOptimize termAdd1`
+-- eval `check [] termAdd2`
+-- eval `checkAndOptimize termAdd2`
